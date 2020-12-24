@@ -20,6 +20,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Compiling and building'
+                sh 'go get github.com/syfaro/telegram-bot-api'
                 sh 'go run main.go'
             }
         }
