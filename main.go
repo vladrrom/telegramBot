@@ -57,13 +57,9 @@ func main() {
 		switch update.Message.Command() {
 		case "start":
 			reply = "Привет. Я телеграм-бот"
-		
-		}
-		switch update.Message(){
 		case "hello":
 			reply = "world"
 		}
-		
 
 		// создаем ответное сообщение
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
