@@ -1,34 +1,50 @@
-#!groovy
-// Run docker build
-properties([disableConcurrentBuilds()])
-
 pipeline {
-  agent {
-    label 'master'
-  }
-  triggers { pollSCM('* * * * *') }
-  options {
-    buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))
-    timestamps()
-  }
-  stages {
-    stage("delete docker") {
-      steps {
-        echo " ========================= delete run docker images ==================="
-        sh 'docker rm -f $(docker ps -a -q)'
-      }
+    agent any
+    tools {
+        go 'go1.14'
     }
-    stage("create docker image") {
-      steps {
-        echo " ========================= create docker image ==================="
-        sh 'docker build -t test_pipeline_go .'
-      }
+    environment {
+        GO114MODULE = 'on'
+        CGO_ENABLED = 0 
+        GOPATH = "${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"
     }
-    stage("run docker") {
-      steps {
-        echo " ========================= run docker image ==================="
-        sh 'docker run -d -p 8081:8081 test_pipeline_go'
-      }
+    stages {        
+        stage('Pre Test') {
+            steps {
+                echo 'Installing dependencies'
+                sh 'go version'
+                sh 'go get -u golang.org/x/lint/golint'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                echo 'Compiling and building'
+                sh 'go build'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                withEnv(["PATH+GO=${GOPATH}/bin"]){
+                    echo 'Running vetting'
+                    sh 'go vet .'
+                    echo 'Running linting'
+                    sh 'golint .'
+                    echo 'Running test'
+                    sh 'cd test && go test -v'
+                }
+            }
+        }
+        
     }
-  }
+    post {
+        always {
+            emailext body: "${currentBuild.currentResult}: Job ${env.JOB_NAME} build ${env.BUILD_NUMBER}\n More info at: ${env.BUILD_URL}",
+                recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
+                to: "${params.RECIPIENTS}",
+                subject: "Jenkins Build ${currentBuild.currentResult}: Job ${env.JOB_NAME}"
+            
+        }
+    }  
 }
