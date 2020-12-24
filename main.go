@@ -1,46 +1,69 @@
 package main
+
 import (
-  "github.com/Syfaro/telegram-bot-api"
-  "log"
+	"flag"
+	"github.com/Syfaro/telegram-bot-api"
+	"log"
+	"os"
 )
 
+var (
+	// глобальная переменная в которой храним токен
+	telegramBotToken string
+)
 
-var apiKey = os.Getenv("068cdf8b46b645699d4334764f7d54cf")
+func init() {
+	// принимаем на входе флаг -telegrambottoken
+	flag.StringVar(&telegramBotToken, "telegrambottoken", "1410350717:AAFHyGN14xfq2h8fpOc5Yr2IWfhC-mr15Ww", "Telegram Bot Token")
+	flag.Parse()
+
+	// без него не запускаемся
+	if telegramBotToken == "" {
+		log.Print("-telegrambottoken is required")
+		os.Exit(1)
+	}
+}
 
 func main() {
-  // подключаемся к боту с помощью токена
-  bot, err := tgbotapi.NewBotAPI("1455335552:AAGt66IORSVRDsDfQ9Fm40F5HKFzi-IR_6s")
+	// используя токен создаем новый инстанс бота
+	bot, err := tgbotapi.NewBotAPI(telegramBotToken)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	// инициализируем канал, куда будут прилетать обновления от API
+	// u - структура с конфигом для получения апдейтов
 	u := tgbotapi.NewUpdate(0)
-    u.Timeout = 30
+	u.Timeout = 60
+
+	// используя конфиг u создаем канал в который будут прилетать новые сообщения
 	updates, err := bot.GetUpdatesChan(u)
-    // читаем обновления из канала
-    for update := range updates {
-        			// Пользователь, который написал боту
-			UserName := update.Message.From.UserName
 
-			// ID чата/диалога.
-			// Может быть идентификатором как чата с пользователем
-			// (тогда он равен UserID) так и публичного чата/канала
-			ChatID := update.Message.Chat.ID
+	// в канал updates прилетают структуры типа Update
+	// вычитываем их и обрабатываем
+	for update := range updates {
+		// универсальный ответ на любое сообщение
+		reply := "Не знаю что сказать"
+		if update.Message == nil {
+			continue
+		}
 
-			// Текст сообщения
-			Text := update.Message.Text
+		// логируем от кого какое сообщение пришло
+		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-			log.Printf("[%s] %d %s", UserName, ChatID, Text)
+		// свитч на обработку комманд
+		// комманда - сообщение, начинающееся с "/"
+		switch update.Message.Command() {
+		case "start":
+			reply = "Привет. Я телеграм-бот"
+		case "hello":
+			reply = "world"
+		}
 
-			// Ответим пользователю его же сообщением.
-			reply := Text
-			// Созадаем сообщение
-			msg := tgbotapi.NewMessage(ChatID, reply)
-			// и отправляем его
-			bot.Send(msg)
-    }
+		// создаем ответное сообщение
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
+		// отправляем
+		bot.Send(msg)
+	}
 }
