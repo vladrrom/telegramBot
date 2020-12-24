@@ -4,7 +4,7 @@ properties([disableConcurrentBuilds()])
 
 pipeline {
   agent {
-    label 'master'
+    label 'main'
   }
   triggers { pollSCM('* * * * *') }
   options {
@@ -12,12 +12,7 @@ pipeline {
     timestamps()
   }
   stages {
-    stage("delete docker") {
-      steps {
-        echo " ========================= delete run docker images ==================="
-        sh 'docker rm -f $(docker ps -a -q)'
-      }
-    }
+    
     stage("create docker image") {
       steps {
         echo " ========================= create docker image ==================="
